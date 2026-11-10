@@ -32,8 +32,10 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(1);
     }
 
-    var config = try Conf.parse(allocator, io, conf_file);
-    defer config.deinit(allocator);
+    const parsed = try Conf.parse(allocator, io, conf_file);
+    defer parsed.deinit();
+
+    const config = parsed.value;
 
     std.debug.print("config: {f}\n", .{config});
 }

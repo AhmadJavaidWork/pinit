@@ -1,7 +1,9 @@
 const std = @import("std");
+const Conf = @import("conf.zig");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
+    const allocator = init.gpa;
     const arena = init.arena.allocator();
 
     var err_buf: [1024]u8 = undefined;
@@ -30,19 +32,10 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(1);
     }
 
-    const file = try std.Io.Dir.cwd().openFile(io, conf_file, .{ .mode = .read_only });
-    var read_buf: [1024 * 4]u8 = undefined;
-    var reader = file.reader(io, &read_buf);
-    const r = &reader.interface;
+    var config = try Conf.parse(allocator, io, conf_file);
+    defer config.deinit(allocator);
 
-    while (true) {
-        const line = try r.takeDelimiter('\n');
-        if (line) |l| {
-            std.debug.print("{s}\n", .{l});
-        } else {
-            break;
-        }
-    }
+    std.debug.print("config: {f}\n", .{config});
 }
 
 fn usage(err: *std.Io.Writer, args: []const [:0]const u8) !void {

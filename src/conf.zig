@@ -4,7 +4,7 @@ const Self = @This();
 
 sessions: []Session,
 
-const Session = struct {
+pub const Session = struct {
     name: []const u8,
     dir: []const u8 = "~/",
     windows: []Window = &[_]Window{},

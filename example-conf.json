@@ -1,0 +1,30 @@
+{
+    "sessions": [
+        {
+            "name": "pinit2",
+            "dir": "~/programming/zig/pinit",
+            "windows": [
+                {
+                    "name": "code",
+                    "dir": "~/programming/zig/pinit",
+                    "cmd": "vim ."
+                },
+                {
+                    "name": "run",
+                    "dir": "~/programming/zig/pinit",
+                    "pane": {
+                        "children": [
+                            {
+                                "direction": "horizontal"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "git",
+                    "dir": "~/programming/zig/pinit"
+                }
+            ]
+        }
+    ]
+}

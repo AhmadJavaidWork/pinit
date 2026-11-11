@@ -12,7 +12,16 @@ const Session = struct {
 
 const Window = struct {
     name: []const u8,
+    pane: Pane,
 };
+
+const Pane = struct {
+    direction: SplitDirection = .horizontal,
+    cmd: []const u8,
+    children: []Pane = &[_]Pane{},
+};
+
+const SplitDirection = enum(u8) { horizontal, vertical };
 
 pub fn parse(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) !std.json.Parsed(Self) {
     const file = try std.Io.Dir.cwd().openFile(io, file_name, .{ .mode = .read_only });

@@ -5,6 +5,7 @@ const Launcher = @import("launcher.zig");
 const Args = struct {
     file_name: []const u8,
     session_name: []const u8,
+    home: []const u8,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -24,7 +25,7 @@ pub fn main(init: std.process.Init) !void {
     const file_path = try prepareConfigFile(allocator, io, args.file_name, err);
     defer allocator.free(file_path);
 
-    const parsed = try Conf.parse(allocator, io, file_path);
+    const parsed = try Conf.parse(allocator, io, file_path, args.home);
     defer parsed.deinit();
 
     const config = parsed.value;
@@ -39,7 +40,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (session) |sess| {
-        try Launcher.launch(allocator, io, sess);
+        try Launcher.launch(allocator, io, sess, args.home);
     } else {
         try errorExit(
             err,
@@ -78,6 +79,10 @@ fn prepareArgs(
 
     var file_name: []const u8 = "";
     var session_name: []const u8 = "";
+    const home = init.environ_map.get("HOME") orelse {
+        try errorExit(err, "Please set HOME environment variable", .{});
+        std.process.exit(1);
+    };
 
     var i: usize = 0;
 
@@ -92,13 +97,7 @@ fn prepareArgs(
     }
 
     if (file_name.len == 0) {
-        const user_home = init.environ_map.get("HOME");
-        if (user_home) |uh| {
-            file_name = try std.fs.path.join(allocator, &.{ uh, ".config/pinit/conf.json" });
-        } else {
-            try errorExit(err, "Please set HOME environment variable", .{});
-            std.process.exit(1);
-        }
+        file_name = try std.fs.path.join(allocator, &.{ home, ".config/pinit/conf.json" });
     }
 
     if (session_name.len == 0) {
@@ -107,7 +106,11 @@ fn prepareArgs(
         std.process.exit(1);
     }
 
-    return .{ .file_name = file_name, .session_name = session_name };
+    return .{
+        .file_name = file_name,
+        .session_name = session_name,
+        .home = home,
+    };
 }
 
 fn usage(err: *std.Io.Writer, args: []const [:0]const u8) !void {

@@ -1,7 +1,12 @@
 const std = @import("std");
 const Conf = @import("conf.zig");
 
-pub fn launch(allocator: std.mem.Allocator, io: std.Io, session: Conf.Session) !void {
+pub fn launch(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    session: Conf.Session,
+    home: []const u8,
+) !void {
     const stderr = std.Io.File.stderr();
     var stderr_write_buf: [1024 * 4]u8 = undefined;
     var stderr_writer = stderr.writer(io, &stderr_write_buf);
@@ -11,7 +16,7 @@ pub fn launch(allocator: std.mem.Allocator, io: std.Io, session: Conf.Session) !
     for (session.windows, 0..) |window, i| {
         var pid: []u8 = "";
         defer allocator.free(pid);
-        const dir = if (window.dir) |d| d else session.dir;
+        const dir = if (window.dir) |d| d else if (session.dir) |d| d else home;
 
         if (i == 0) {
             pid = try spawnSession(allocator, io, dir, session.name, window.name, err);

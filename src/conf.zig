@@ -6,7 +6,7 @@ sessions: []Session,
 
 pub const Session = struct {
     name: []const u8,
-    dir: []const u8 = "~/",
+    dir: ?[]const u8 = null,
     windows: []Window = &[_]Window{},
 };
 
@@ -26,7 +26,12 @@ pub const Pane = struct {
 
 pub const SplitDirection = enum(u8) { horizontal, vertical };
 
-pub fn parse(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) !std.json.Parsed(Self) {
+pub fn parse(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    file_name: []const u8,
+    home: []const u8,
+) !std.json.Parsed(Self) {
     const file = try std.Io.Dir.cwd().openFile(io, file_name, .{ .mode = .read_only });
     defer file.close(io);
 
@@ -35,7 +40,53 @@ pub fn parse(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) !s
     var r = std.json.Reader.init(allocator, &file_reader.interface);
     defer r.deinit();
 
-    return try std.json.parseFromTokenSource(Self, allocator, &r, .{ .ignore_unknown_fields = true });
+    var parsed = try std.json.parseFromTokenSource(Self, allocator, &r, .{ .ignore_unknown_fields = true });
+    try normalizePaths(&parsed, home);
+    return parsed;
+}
+
+fn normalizePaths(
+    parsed: *std.json.Parsed(Self),
+    home: []const u8,
+) !void {
+    const allocator = parsed.arena.allocator();
+
+    for (parsed.value.sessions) |*sess| {
+        if (sess.dir) |dir| {
+            if (std.mem.startsWith(u8, dir, "~/")) {
+                sess.dir = try std.fs.path.join(allocator, &.{ home, dir[2..] });
+            }
+        }
+        for (sess.windows) |*window| {
+            if (window.dir) |dir| {
+                if (std.mem.startsWith(u8, dir, "~/")) {
+                    window.dir = try std.fs.path.join(allocator, &.{ home, dir[2..] });
+                }
+            }
+            if (window.pane) |*pane| {
+                if (pane.dir) |dir| {
+                    if (std.mem.startsWith(u8, dir, "~/")) {
+                        window.pane.?.dir = try std.fs.path.join(allocator, &.{ home, dir[2..] });
+                    }
+                }
+                try normalizeChildren(parsed.arena, pane, home);
+            }
+        }
+    }
+}
+
+fn normalizeChildren(arena: *std.heap.ArenaAllocator, pane: *Pane, home: []const u8) !void {
+    const allocator = arena.allocator();
+    if (pane.children) |children| {
+        for (children) |*p| {
+            if (p.dir) |dir| {
+                if (std.mem.startsWith(u8, dir, "~/")) {
+                    p.dir = try std.fs.path.join(allocator, &.{ home, dir[2..] });
+                }
+            }
+            try normalizeChildren(arena, p, home);
+        }
+    }
 }
 
 pub fn format(self: *const Self, w: *std.Io.Writer) !void {

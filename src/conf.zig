@@ -2,8 +2,12 @@ const std = @import("std");
 
 const Self = @This();
 
-session_name: []const u8,
-work_dir: []const u8,
+const Session = struct {
+    name: []const u8,
+    dir: []const u8,
+};
+
+sessions: []Session,
 
 pub fn parse(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) !std.json.Parsed(Self) {
     const file = try std.Io.Dir.cwd().openFile(io, file_name, .{ .mode = .read_only });
@@ -18,7 +22,11 @@ pub fn parse(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) !s
 }
 
 pub fn format(self: *const Self, w: *std.Io.Writer) !void {
-    try w.print("session_name: {s}\n", .{self.session_name});
-    try w.print("work_dir: {s}", .{self.work_dir});
-    try w.flush();
+    try w.print("sessions: {{\n", .{});
+    for (self.sessions) |session| {
+        try w.print("\t{{\n\t\tname: {s},\n", .{session.name});
+        try w.print("\t\tdir: {s},\n\t}},\n", .{session.dir});
+        try w.flush();
+    }
+    try w.print("}}", .{});
 }

@@ -1,23 +1,37 @@
 const std = @import("std");
-const Session = @import("conf.zig").Session;
+const Conf = @import("conf.zig");
 
-pub fn launch(allocator: std.mem.Allocator, io: std.Io, session: Session) !void {
+pub fn launch(allocator: std.mem.Allocator, io: std.Io, session: Conf.Session) !void {
     const stderr = std.Io.File.stderr();
     var stderr_write_buf: [1024 * 4]u8 = undefined;
     var stderr_writer = stderr.writer(io, &stderr_write_buf);
 
     const err = &stderr_writer.interface;
 
-    const code_pane = try spawnSession(allocator, io, session.name, session.dir, session.windows[0].name, err);
-    try runByPaneId(allocator, io, code_pane, session.windows[0].pane.cmd, err);
-    defer allocator.free(code_pane);
+    for (session.windows, 0..) |window, i| {
+        var pid: []u8 = "";
+        defer allocator.free(pid);
+        const dir = if (window.dir) |d| d else session.dir;
+
+        if (i == 0) {
+            pid = try spawnSession(allocator, io, dir, session.name, window.name, err);
+        } else {
+            pid = try makeWindow(allocator, io, dir, session.name, window.name, err);
+        }
+
+        if (window.pane.cmd) |cmd| {
+            try runByPaneId(allocator, io, pid, cmd, err);
+        }
+
+        try spawnChildren(allocator, io, dir, window.pane, pid, err);
+    }
 }
 
 fn spawnSession(
     allocator: std.mem.Allocator,
     io: std.Io,
+    dir: []const u8,
     session_name: []const u8,
-    work_dir: []const u8,
     window_name: []const u8,
     err: *std.Io.Writer,
 ) ![]u8 {
@@ -28,10 +42,10 @@ fn spawnSession(
             "-d",
             "-s",
             session_name,
-            "-c",
-            work_dir,
             "-n",
             window_name,
+            "-c",
+            dir,
             "-P",
             "-F",
             "#{pane_id}",
@@ -42,6 +56,88 @@ fn spawnSession(
 
     try printResult(result, err);
 
+    return allocator.dupe(u8, std.mem.trim(u8, result.stdout, " \t\r\n"));
+}
+
+fn makeWindow(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    dir: []const u8,
+    session_name: []const u8,
+    window_name: []const u8,
+    err: *std.Io.Writer,
+) ![]u8 {
+    const result = try std.process.run(allocator, io, .{
+        .argv = &.{
+            "tmux",
+            "new-window",
+            "-d",
+            "-t",
+            session_name,
+            "-n",
+            window_name,
+            "-c",
+            dir,
+            "-P",
+            "-F",
+            "#{pane_id}",
+        },
+    });
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
+
+    try printResult(result, err);
+    return allocator.dupe(u8, std.mem.trim(u8, result.stdout, " \t\r\n"));
+}
+
+fn spawnChildren(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    dir: []const u8,
+    pane: Conf.Pane,
+    pid: []const u8,
+    err: *std.Io.Writer,
+) !void {
+    for (pane.children) |p| {
+        const directory = if (p.dir) |d| d else if (pane.dir) |d| d else dir;
+        const cid = try splitPane(allocator, io, directory, pid, p.direction, err);
+        defer allocator.free(cid);
+
+        if (p.cmd) |cmd| {
+            try runByPaneId(allocator, io, cid, cmd, err);
+        }
+        try spawnChildren(allocator, io, dir, p, cid, err);
+    }
+}
+
+fn splitPane(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    dir: []const u8,
+    pane: []const u8,
+    split_direction: Conf.SplitDirection,
+    err: *std.Io.Writer,
+) ![]u8 {
+    const split_flag = if (split_direction == .horizontal) "-h" else "-v";
+
+    const result = try std.process.run(allocator, io, .{
+        .argv = &.{
+            "tmux",
+            "split-window",
+            split_flag,
+            "-t",
+            pane,
+            "-c",
+            dir,
+            "-P",
+            "-F",
+            "#{pane_id}",
+        },
+    });
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
+
+    try printResult(result, err);
     return allocator.dupe(u8, std.mem.trim(u8, result.stdout, " \t\r\n"));
 }
 

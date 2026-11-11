@@ -46,8 +46,6 @@ pub fn main(init: std.process.Init) !void {
 
     const config = parsed.value;
 
-    // std.debug.print("config: {f}\n", .{config});
-
     var session: ?Conf.Session = null;
 
     for (config.sessions) |sess| {
@@ -58,7 +56,6 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (session) |sess| {
-        std.debug.print("here launching\n", .{});
         try Launcher.launch(allocator, io, sess);
     } else {
         try err.print("No session: {s} found in the conf file: {s}\n", .{ session_name, file_path });

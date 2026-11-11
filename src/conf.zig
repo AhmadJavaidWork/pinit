@@ -36,67 +36,62 @@ pub fn parse(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) !s
 }
 
 pub fn format(self: *const Self, w: *std.Io.Writer) !void {
-    try w.print("sessions: ", .{});
-    try printOpenBraces(w);
-    try printNewLine(w);
+    try indentedPrint(w, 0, "{{\n", .{});
+    try indentedPrint(w, 1, "sessions: {{", .{});
 
-    for (self.sessions) |session| {
-        try printTabs(1, w);
-        try printOpenBraces(w);
-        try printNewLine(w);
-
-        try printTabs(2, w);
-        try w.print("name: ", .{});
-        try printDoubleQuotes(w);
-        try w.print("{s}", .{session.name});
-        try printDoubleQuotes(w);
-        try printComma(w);
-        try printNewLine(w);
-
-        try printTabs(2, w);
-        try w.print("dir: ", .{});
-        try printDoubleQuotes(w);
-        try w.print("{s}", .{session.dir});
-        try printDoubleQuotes(w);
-
-        try printComma(w);
-        try printNewLine(w);
-
-        try printTabs(2, w);
-        try w.print("windows: ", .{});
-        try printOpenBraces(w);
-        try printNewLine(w);
-
-        for (session.windows) |window| {
-            try printTabs(3, w);
-            try printOpenBraces(w);
-            try printNewLine(w);
-
-            try printTabs(4, w);
-            try w.print("name: ", .{});
-            try printDoubleQuotes(w);
-            try w.print("{s}", .{window.name});
-            try printDoubleQuotes(w);
-            try printComma(w);
-            try printNewLine(w);
-
-            try printTabs(3, w);
-            try printCloseBraces(w);
-            try printComma(w);
-            try printNewLine(w);
-        }
-        try printTabs(2, w);
-        try printCloseBraces(w);
-        try printComma(w);
-        try printNewLine(w);
-
-        try printTabs(1, w);
-        try printCloseBraces(w);
-        try printComma(w);
-        try printNewLine(w);
+    if (self.sessions.len > 0) {
+        try w.print("\n", .{});
     }
 
-    try printCloseBraces(w);
+    for (self.sessions) |session| {
+        try indentedPrint(w, 2, "{{\n", .{});
+        try indentedPrint(w, 3, "name: \"{s}\",\n", .{session.name});
+        try indentedPrint(w, 3, "dir: \"{s}\",\n", .{session.dir});
+        try indentedPrint(w, 3, "windows: {{", .{});
+
+        if (session.windows.len > 0) {
+            try w.print("\n", .{});
+        }
+
+        for (session.windows) |window| {
+            try indentedPrint(w, 4, "{{\n", .{});
+            try indentedPrint(w, 5, "name: \"{s}\",\n", .{window.name});
+            try indentedPrint(w, 5, "pane: {{\n", .{});
+            try indentedPrint(w, 6, "direction: \"{}\",\n", .{window.pane.direction});
+            try indentedPrint(w, 6, "cmd: \"{s}\",\n", .{window.pane.cmd});
+            try indentedPrint(w, 6, "children: {{", .{});
+
+            if (window.pane.children.len > 0) {
+                try w.print("\n", .{});
+            }
+
+            for (window.pane.children) |pane| {
+                try indentedPrint(w, 7, "{{\n", .{});
+                try indentedPrint(w, 8, "direction: \"{}\",\n", .{window.pane.direction});
+                try indentedPrint(w, 8, "cmd: \"{s}\",\n", .{pane.cmd});
+                try indentedPrint(w, 7, "}},\n", .{});
+            }
+
+            if (window.pane.children.len > 0) {
+                try printTabs(6, w);
+            }
+
+            try indentedPrint(w, 0, "}},\n", .{});
+            try indentedPrint(w, 5, "}},\n", .{});
+            try indentedPrint(w, 4, "}},\n", .{});
+        }
+
+        if (session.windows.len > 0) {
+            try printTabs(3, w);
+        }
+
+        try indentedPrint(w, 0, "}},\n", .{});
+        try indentedPrint(w, 2, "}},\n", .{});
+    }
+
+    try indentedPrint(w, 1, "}},\n", .{});
+
+    try w.print("}}", .{});
     try w.flush();
 }
 
@@ -107,22 +102,7 @@ fn printTabs(n: usize, w: *std.Io.Writer) !void {
     }
 }
 
-fn printOpenBraces(w: *std.Io.Writer) !void {
-    try w.print("{{", .{});
-}
-
-fn printCloseBraces(w: *std.Io.Writer) !void {
-    try w.print("}}", .{});
-}
-
-fn printNewLine(w: *std.Io.Writer) !void {
-    try w.print("\n", .{});
-}
-
-fn printComma(w: *std.Io.Writer) !void {
-    try w.print(",", .{});
-}
-
-fn printDoubleQuotes(w: *std.Io.Writer) !void {
-    try w.print("\"", .{});
+fn indentedPrint(w: *std.Io.Writer, tabs: usize, comptime fmt: []const u8, args: anytype) !void {
+    try printTabs(tabs, w);
+    try w.print(fmt, args);
 }

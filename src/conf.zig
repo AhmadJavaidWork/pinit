@@ -13,14 +13,15 @@ pub const Session = struct {
 pub const Window = struct {
     name: []const u8,
     dir: ?[]const u8 = null,
-    pane: Pane,
+    cmd: ?[]const u8 = null,
+    pane: ?Pane = null,
 };
 
 pub const Pane = struct {
     direction: SplitDirection = .horizontal,
     dir: ?[]const u8 = null,
     cmd: ?[]const u8 = null,
-    children: []Pane = &[_]Pane{},
+    children: ?[]Pane = null,
 };
 
 pub const SplitDirection = enum(u8) { horizontal, vertical };

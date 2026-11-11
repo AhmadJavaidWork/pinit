@@ -19,11 +19,16 @@ pub fn launch(allocator: std.mem.Allocator, io: std.Io, session: Conf.Session) !
             pid = try makeWindow(allocator, io, dir, session.name, window.name, err);
         }
 
-        if (window.pane.cmd) |cmd| {
+        if (window.pane) |p| {
+            if (p.cmd) |cmd| {
+                try runByPaneId(allocator, io, pid, cmd, err);
+            } else if (window.cmd) |cmd| {
+                try runByPaneId(allocator, io, pid, cmd, err);
+            }
+            try spawnChildren(allocator, io, dir, p, pid, err);
+        } else if (window.cmd) |cmd| {
             try runByPaneId(allocator, io, pid, cmd, err);
         }
-
-        try spawnChildren(allocator, io, dir, window.pane, pid, err);
     }
 }
 
@@ -98,15 +103,17 @@ fn spawnChildren(
     pid: []const u8,
     err: *std.Io.Writer,
 ) !void {
-    for (pane.children) |p| {
-        const directory = if (p.dir) |d| d else if (pane.dir) |d| d else dir;
-        const cid = try splitPane(allocator, io, directory, pid, p.direction, err);
-        defer allocator.free(cid);
+    if (pane.children) |children| {
+        for (children) |p| {
+            const directory = if (p.dir) |d| d else if (pane.dir) |d| d else dir;
+            const cid = try splitPane(allocator, io, directory, pid, p.direction, err);
+            defer allocator.free(cid);
 
-        if (p.cmd) |cmd| {
-            try runByPaneId(allocator, io, cid, cmd, err);
+            if (p.cmd) |cmd| {
+                try runByPaneId(allocator, io, cid, cmd, err);
+            }
+            try spawnChildren(allocator, io, dir, p, cid, err);
         }
-        try spawnChildren(allocator, io, dir, p, cid, err);
     }
 }
 

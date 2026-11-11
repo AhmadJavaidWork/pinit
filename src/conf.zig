@@ -6,8 +6,8 @@ sessions: []Session,
 
 const Session = struct {
     name: []const u8,
-    dir: []const u8,
-    windows: []Window,
+    dir: []const u8 = "~/",
+    windows: []Window = &[_]Window{},
 };
 
 const Window = struct {

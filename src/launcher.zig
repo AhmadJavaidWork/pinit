@@ -6,6 +6,7 @@ pub fn launch(
     io: std.Io,
     session: Conf.Session,
     home: []const u8,
+    inside_tmux: bool,
 ) !void {
     const stderr = std.Io.File.stderr();
     var stderr_write_buf: [1024 * 4]u8 = undefined;
@@ -35,6 +36,27 @@ pub fn launch(
             try runByPaneId(allocator, io, pid, cmd, err);
         }
     }
+
+    try connectToSession(io, session.name, inside_tmux);
+}
+
+fn connectToSession(
+    io: std.Io,
+    session_name: []const u8,
+    inside_tmux: bool,
+) !void {
+    const argv: []const []const u8 = if (inside_tmux)
+        &.{ "tmux", "switch-client", "-t", session_name }
+    else
+        &.{ "tmux", "attach", "-d", "-t", session_name };
+    var child = try std.process.spawn(io, .{
+        .argv = argv,
+        .stdin = .inherit,
+        .stdout = .inherit,
+        .stderr = .inherit,
+    });
+
+    _ = try child.wait(io);
 }
 
 fn spawnSession(

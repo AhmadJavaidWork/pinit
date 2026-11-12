@@ -6,6 +6,7 @@ const Args = struct {
     file_name: []const u8,
     session_name: []const u8,
     home: []const u8,
+    inside_tmux: bool = false,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -40,7 +41,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     if (session) |sess| {
-        try Launcher.launch(allocator, io, sess, args.home);
+        try Launcher.launch(allocator, io, sess, args.home, args.inside_tmux);
     } else {
         try errorExit(
             err,
@@ -110,6 +111,7 @@ fn prepareArgs(
         .file_name = file_name,
         .session_name = session_name,
         .home = home,
+        .inside_tmux = init.environ_map.get("TMUX") != null,
     };
 }
 

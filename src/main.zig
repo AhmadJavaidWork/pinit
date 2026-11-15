@@ -3,8 +3,8 @@ const Conf = @import("conf.zig");
 const Launcher = @import("launcher.zig");
 
 const Args = struct {
-    file_name: []const u8,
-    session_name: []const u8,
+    file: []const u8,
+    session: []const u8,
     home: []const u8,
     inside_tmux: bool = false,
 };
@@ -21,9 +21,9 @@ pub fn main(init: std.process.Init) !void {
     const err = &stderr_writer.interface;
 
     const args = try prepareArgs(init.arena, init, err);
-    defer arena.free(args.file_name);
+    defer arena.free(args.file);
 
-    const file_path = try prepareConfigFile(allocator, io, args.file_name, err);
+    const file_path = try prepareConfigFile(allocator, io, args.file, err);
     defer allocator.free(file_path);
 
     const parsed = try Conf.parse(allocator, io, file_path, args.home);
@@ -34,7 +34,7 @@ pub fn main(init: std.process.Init) !void {
     var session: ?Conf.Session = null;
 
     for (config.sessions) |sess| {
-        if (std.mem.eql(u8, args.session_name, sess.name)) {
+        if (std.mem.eql(u8, args.session, sess.name)) {
             session = sess;
             break;
         }
@@ -45,8 +45,8 @@ pub fn main(init: std.process.Init) !void {
     } else {
         try errorExit(
             err,
-            "No session: {s} found in the conf file: {s}\n",
-            .{ args.session_name, file_path },
+            "No session: {s} found in the config file: {s}\n",
+            .{ args.session, file_path },
         );
         std.process.exit(1);
     }
@@ -78,45 +78,33 @@ fn prepareArgs(
     const args = try init.minimal.args.toSlice(allocator);
     defer allocator.free(args);
 
-    var file_name: []const u8 = "";
-    var session_name: []const u8 = "";
     const home = init.environ_map.get("HOME") orelse {
         try errorExit(err, "Please set HOME environment variable", .{});
         std.process.exit(1);
     };
 
-    var i: usize = 0;
-
-    while (i < args.len) : (i += 1) {
-        if (std.mem.eql(u8, args[i], "-f")) {
-            i += 1;
-            file_name = args[i];
-        } else if (std.mem.eql(u8, args[i], "-s")) {
-            i += 1;
-            session_name = args[i];
-        }
-    }
-
-    if (file_name.len == 0) {
-        file_name = try std.fs.path.join(allocator, &.{ home, ".config/pinit/conf.json" });
-    }
-
-    if (session_name.len == 0) {
+    if (args.len < 2) {
         try errorExit(err, "Please provide a session name\n", .{});
         try usage(err, args);
         std.process.exit(1);
     }
 
+    const session: []const u8 = args[1];
+    var file: ?[]const u8 = null;
+    if (args.len > 2) {
+        file = args[2];
+    }
+
     return .{
-        .file_name = file_name,
-        .session_name = session_name,
+        .file = if (file) |f| f else try std.fs.path.join(allocator, &.{ home, ".config/pinit/conf.json" }),
+        .session = session,
         .home = home,
         .inside_tmux = init.environ_map.get("TMUX") != null,
     };
 }
 
 fn usage(err: *std.Io.Writer, args: []const [:0]const u8) !void {
-    try err.print("Usage: {s} -s [session-name] -f [conf-file-path]\n", .{args[0]});
+    try err.print("Usage: {s} <session-name> [config-file]\n", .{args[0]});
     try err.flush();
 }
 

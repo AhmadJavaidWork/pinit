@@ -3,12 +3,15 @@ pinit is a tmux session initializer that reads a config file and then starts and
 
 ## Usage
 ```bash
-pinit -s pinit-session -f example-conf.json
+pinit pinit-session example-conf.json
 ```
 
-### Flags
-- `-s`: `session name`
-- `-f`: `config file path` default is ~/.config/pinit/conf.json
+### Args
+```bash
+pinit <session-name> [config-file]\n
+```
+- `<session-name>`: Session name to create
+- `[config-file]`: Config file path, default is ~/.config/pinit/conf.json
 
 ## Setup
 - Download a release

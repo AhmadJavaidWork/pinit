@@ -11,7 +11,7 @@ pinit pinit-session example-conf.json
 pinit <session-name> [config-file]
 ```
 - `<session-name>`: Session name to create
-- `[config-file]`: Config file path, default is ~/.config/pinit/conf.json
+- `[config-file]`: Config file path, default is `~/.config/pinit/conf.json`
 
 ## Setup
 - Download a release

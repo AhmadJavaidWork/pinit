@@ -28,7 +28,7 @@ jobs:
       - name: Setup Zig
         uses: jetsung/setup-zig@v0.0.4
         with:
-          version: "0.16.0"
+          version: "0.17.0"
 
       - name: Build Optimized Binary
         run: zig build -Doptimize=ReleaseFast -Dtarget=${{ matrix.target }}

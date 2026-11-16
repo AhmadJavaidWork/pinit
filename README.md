@@ -15,6 +15,6 @@ pinit <session-name> [config-file]
 
 ## Setup
 - Download a release
-- After extracting copy it to /usr/local/bin
-- Create a conf.json in ~/.config/pinit according to the example-conf.json
+- After extracting the release, copy the binary to `/usr/local/bin`
+- Create a conf.json in `~/.config/pinit` according to the example-conf.json
 - And then simply run it using `pinit <session-name>`

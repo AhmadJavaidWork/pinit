@@ -8,7 +8,7 @@ pinit pinit-session example-conf.json
 
 ### Args
 ```bash
-pinit <session-name> [config-file]\n
+pinit <session-name> [config-file]
 ```
 - `<session-name>`: Session name to create
 - `[config-file]`: Config file path, default is ~/.config/pinit/conf.json

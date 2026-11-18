@@ -15,26 +15,31 @@ pub fn launch(
 
     const err = &stderr_writer.interface;
 
-    for (session.windows, 0..) |window, i| {
-        var pid: []u8 = "";
-        defer allocator.free(pid);
-        const dir = if (window.dir) |d| d else if (session.dir) |d| d else home;
+    if (session.windows.len == 0) {
+        const dir = if (session.dir) |d| d else home;
+        _ = try spawnSession(allocator, io, dir, session.name, "", err);
+    } else {
+        for (session.windows, 0..) |window, i| {
+            var pid: []u8 = "";
+            defer allocator.free(pid);
+            const dir = if (window.dir) |d| d else if (session.dir) |d| d else home;
 
-        if (i == 0) {
-            pid = try spawnSession(allocator, io, dir, session.name, window.name, err);
-        } else {
-            pid = try makeWindow(allocator, io, dir, session.name, window.name, err);
-        }
+            if (i == 0) {
+                pid = try spawnSession(allocator, io, dir, session.name, window.name, err);
+            } else {
+                pid = try makeWindow(allocator, io, dir, session.name, window.name, err);
+            }
 
-        if (window.pane) |p| {
-            if (p.cmd) |cmd| {
-                try runByPaneId(allocator, io, pid, cmd, err);
+            if (window.pane) |p| {
+                if (p.cmd) |cmd| {
+                    try runByPaneId(allocator, io, pid, cmd, err);
+                } else if (window.cmd) |cmd| {
+                    try runByPaneId(allocator, io, pid, cmd, err);
+                }
+                try spawnChildren(allocator, io, dir, p, pid, err);
             } else if (window.cmd) |cmd| {
                 try runByPaneId(allocator, io, pid, cmd, err);
             }
-            try spawnChildren(allocator, io, dir, p, pid, err);
-        } else if (window.cmd) |cmd| {
-            try runByPaneId(allocator, io, pid, cmd, err);
         }
     }
 

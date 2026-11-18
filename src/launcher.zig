@@ -17,7 +17,12 @@ pub fn launch(
 
     if (session.windows.len == 0) {
         const dir = if (session.dir) |d| d else home;
-        _ = try spawnSession(allocator, io, dir, session.name, "", err);
+        _ = spawnSession(allocator, io, dir, session.name, "", err) catch |e| {
+            switch (e) {
+                error.DuplicateSession => {},
+                else => return e,
+            }
+        };
     } else {
         for (session.windows, 0..) |window, i| {
             var pid: []u8 = "";
@@ -25,7 +30,12 @@ pub fn launch(
             const dir = if (window.dir) |d| d else if (session.dir) |d| d else home;
 
             if (i == 0) {
-                pid = try spawnSession(allocator, io, dir, session.name, window.name, err);
+                pid = spawnSession(allocator, io, dir, session.name, window.name, err) catch |e| {
+                    switch (e) {
+                        error.DuplicateSession => break,
+                        else => return e,
+                    }
+                };
             } else {
                 pid = try makeWindow(allocator, io, dir, session.name, window.name, err);
             }
@@ -91,6 +101,10 @@ fn spawnSession(
     });
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
+
+    if (std.mem.startsWith(u8, result.stderr, "duplicate session: ")) {
+        return error.DuplicateSession;
+    }
 
     try printResult(result, err);
 
